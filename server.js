@@ -416,6 +416,8 @@ async function serveStatic(req, res, url) {
   let pathname = decodeURIComponent(url.pathname);
   if (pathname === "/") pathname = "/index.html";
   if (pathname === "/admin") pathname = "/admin.html";
+  if (pathname === "/public") pathname = "/index.html";
+  if (pathname.startsWith("/public/")) pathname = pathname.slice("/public".length);
 
   const filePath = path.normalize(path.join(PUBLIC_DIR, pathname));
   if (!filePath.startsWith(PUBLIC_DIR)) {

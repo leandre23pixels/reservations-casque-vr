@@ -19,6 +19,7 @@ Puis ouvre:
 
 - Site public: `http://localhost:3000`
 - Admin: `http://localhost:3000/admin`
+- Si tu ouvres les fichiers sans serveur: `public/index.html`
 
 Le code admin par defaut est `lso2012`.
 
@@ -43,4 +44,4 @@ $env:ADMIN_PASSWORD="ton-code"; node server.js
 
 ## Publication
 
-Le depot GitHub contient le site et le serveur. GitHub Pages ne suffit pas pour partager les reservations entre plusieurs appareils, car il ne lance pas de serveur Node. Pour une version en ligne accessible partout, deploie ce depot sur un hebergeur Node comme Render, Railway, Fly.io ou un VPS, puis configure `ADMIN_PASSWORD`.
+Le depot GitHub contient le site et le serveur. GitHub Pages peut afficher les fichiers statiques, mais il ne suffit pas pour partager les reservations entre plusieurs appareils, car il ne lance pas de serveur Node. Pour une version en ligne accessible partout, deploie ce depot sur un hebergeur Node comme Render, Railway, Fly.io ou un VPS, puis configure `ADMIN_PASSWORD`.
