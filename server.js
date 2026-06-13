@@ -7,17 +7,13 @@ const path = require("node:path");
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || "0.0.0.0";
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "lso2012";
-const SESSION_SECRET =
-  process.env.SESSION_SECRET ||
-  crypto
-    .createHash("sha256")
-    .update(`vr-reservations:${ADMIN_PASSWORD}:${process.cwd()}`)
-    .digest("hex");
 
 const DATA_DIR = path.join(__dirname, "data");
 const DATA_FILE = path.join(DATA_DIR, "reservations.json");
+const ADMIN_FILE = path.join(DATA_DIR, "admin.json");
 const PUBLIC_DIR = path.join(__dirname, "public");
+const ENV_ADMIN_PASSWORD = String(process.env.ADMIN_PASSWORD || "");
+const MIN_ADMIN_PASSWORD_LENGTH = 6;
 
 const defaultData = {
   settings: {
@@ -74,6 +70,85 @@ async function ensureDataFile() {
   if (!fs.existsSync(DATA_FILE)) {
     await writeData(defaultData);
   }
+}
+
+function hashPassword(password, salt) {
+  return crypto
+    .pbkdf2Sync(password, salt, 120_000, 64, "sha512")
+    .toString("hex");
+}
+
+function timingSafeStringEqual(left, right) {
+  const leftBuffer = Buffer.from(left);
+  const rightBuffer = Buffer.from(right);
+  return (
+    leftBuffer.length === rightBuffer.length &&
+    crypto.timingSafeEqual(leftBuffer, rightBuffer)
+  );
+}
+
+async function readAdminConfig() {
+  if (ENV_ADMIN_PASSWORD) {
+    const salt = crypto
+      .createHash("sha256")
+      .update(`env-admin:${process.cwd()}`)
+      .digest("hex");
+    return {
+      configured: true,
+      source: "env",
+      salt,
+      passwordHash: hashPassword(ENV_ADMIN_PASSWORD, salt),
+      sessionSecret:
+        process.env.SESSION_SECRET ||
+        crypto
+          .createHash("sha256")
+          .update(`vr-session:${salt}:${process.cwd()}`)
+          .digest("hex"),
+    };
+  }
+
+  await fsp.mkdir(DATA_DIR, { recursive: true });
+  if (!fs.existsSync(ADMIN_FILE)) {
+    return { configured: false, source: "setup" };
+  }
+
+  const text = await fsp.readFile(ADMIN_FILE, "utf8");
+  const parsed = JSON.parse(text);
+  return {
+    configured: Boolean(parsed.passwordHash && parsed.salt),
+    source: "setup",
+    salt: parsed.salt,
+    passwordHash: parsed.passwordHash,
+    sessionSecret:
+      parsed.sessionSecret ||
+      crypto
+        .createHash("sha256")
+        .update(`vr-session:${parsed.passwordHash}:${process.cwd()}`)
+        .digest("hex"),
+  };
+}
+
+async function writeAdminConfig(password) {
+  const salt = crypto.randomBytes(24).toString("hex");
+  const adminConfig = {
+    salt,
+    passwordHash: hashPassword(password, salt),
+    sessionSecret: crypto.randomBytes(48).toString("hex"),
+    createdAt: new Date().toISOString(),
+  };
+  await fsp.mkdir(DATA_DIR, { recursive: true });
+  const tempFile = `${ADMIN_FILE}.${process.pid}.tmp`;
+  await fsp.writeFile(tempFile, `${JSON.stringify(adminConfig, null, 2)}\n`);
+  await fsp.rename(tempFile, ADMIN_FILE);
+  return { configured: true, source: "setup", ...adminConfig };
+}
+
+function verifyPassword(password, adminConfig) {
+  if (!adminConfig.configured) return false;
+  return timingSafeStringEqual(
+    hashPassword(password, adminConfig.salt),
+    adminConfig.passwordHash,
+  );
 }
 
 function normalizeData(raw) {
@@ -167,34 +242,32 @@ function publicPayload(data) {
   };
 }
 
-function createToken() {
+function createToken(sessionSecret) {
   const payload = Buffer.from(
     JSON.stringify({ exp: Date.now() + 24 * 60 * 60 * 1000 }),
   ).toString("base64url");
   const signature = crypto
-    .createHmac("sha256", SESSION_SECRET)
+    .createHmac("sha256", sessionSecret)
     .update(payload)
     .digest("base64url");
   return `${payload}.${signature}`;
 }
 
-function verifyToken(req) {
+async function verifyToken(req) {
+  const adminConfig = await readAdminConfig();
+  if (!adminConfig.configured || !adminConfig.sessionSecret) return false;
+
   const auth = req.headers.authorization || "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
   if (!token || !token.includes(".")) return false;
 
   const [payload, signature] = token.split(".");
   const expected = crypto
-    .createHmac("sha256", SESSION_SECRET)
+    .createHmac("sha256", adminConfig.sessionSecret)
     .update(payload)
     .digest("base64url");
 
-  const signatureBuffer = Buffer.from(signature);
-  const expectedBuffer = Buffer.from(expected);
-  if (
-    signatureBuffer.length !== expectedBuffer.length ||
-    !crypto.timingSafeEqual(signatureBuffer, expectedBuffer)
-  ) {
+  if (!timingSafeStringEqual(signature, expected)) {
     return false;
   }
 
@@ -206,8 +279,8 @@ function verifyToken(req) {
   }
 }
 
-function requireAdmin(req, res) {
-  if (!verifyToken(req)) {
+async function requireAdmin(req, res) {
+  if (!(await verifyToken(req))) {
     sendError(res, 401, "Connexion admin requise.");
     return false;
   }
@@ -217,6 +290,14 @@ function requireAdmin(req, res) {
 async function handleApi(req, res, url) {
   if (req.method === "GET" && url.pathname === "/api/health") {
     return sendJson(res, 200, { ok: true });
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/admin/status") {
+    const adminConfig = await readAdminConfig();
+    return sendJson(res, 200, {
+      configured: adminConfig.configured,
+      source: adminConfig.source,
+    });
   }
 
   if (req.method === "GET" && url.pathname === "/api/public") {
@@ -268,15 +349,43 @@ async function handleApi(req, res, url) {
     return sendJson(res, 201, { reservation, slot });
   }
 
-  if (req.method === "POST" && url.pathname === "/api/admin/login") {
-    const body = await parseBody(req);
-    if (cleanText(body.password, 120) !== ADMIN_PASSWORD) {
-      return sendError(res, 401, "Code admin incorrect.");
+  if (req.method === "POST" && url.pathname === "/api/admin/setup") {
+    const adminConfig = await readAdminConfig();
+    if (adminConfig.configured) {
+      return sendError(res, 409, "Le code admin est deja configure.");
     }
-    return sendJson(res, 200, { token: createToken() });
+
+    const body = await parseBody(req);
+    const password = String(body.password || "");
+    if (password.length < MIN_ADMIN_PASSWORD_LENGTH) {
+      return sendError(
+        res,
+        400,
+        `Choisis un code admin d'au moins ${MIN_ADMIN_PASSWORD_LENGTH} caracteres.`,
+      );
+    }
+    if (password !== String(body.confirmPassword || "")) {
+      return sendError(res, 400, "Les deux codes ne correspondent pas.");
+    }
+
+    const created = await writeAdminConfig(password);
+    return sendJson(res, 201, { token: createToken(created.sessionSecret) });
   }
 
-  if (url.pathname.startsWith("/api/admin/") && !requireAdmin(req, res)) {
+  if (req.method === "POST" && url.pathname === "/api/admin/login") {
+    const adminConfig = await readAdminConfig();
+    if (!adminConfig.configured) {
+      return sendError(res, 409, "Cree d'abord ton code admin.");
+    }
+
+    const body = await parseBody(req);
+    if (!verifyPassword(String(body.password || ""), adminConfig)) {
+      return sendError(res, 401, "Code admin incorrect.");
+    }
+    return sendJson(res, 200, { token: createToken(adminConfig.sessionSecret) });
+  }
+
+  if (url.pathname.startsWith("/api/admin/") && !(await requireAdmin(req, res))) {
     return undefined;
   }
 
@@ -427,9 +536,13 @@ async function serveStatic(req, res, url) {
   try {
     const body = await fsp.readFile(filePath);
     const ext = path.extname(filePath).toLowerCase();
+    const cacheControl =
+      ext === ".html" || ext === ".css" || ext === ".js"
+        ? "no-store"
+        : "public, max-age=3600";
     res.writeHead(200, {
       "Content-Type": mimeTypes[ext] || "application/octet-stream",
-      "Cache-Control": ext === ".html" ? "no-store" : "public, max-age=3600",
+      "Cache-Control": cacheControl,
     });
     res.end(body);
   } catch (error) {
@@ -455,6 +568,26 @@ function localAddresses() {
 
 const server = http.createServer(async (req, res) => {
   try {
+    const origin = req.headers.origin;
+    if (origin) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+      res.setHeader("Vary", "Origin");
+    }
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Authorization",
+    );
+    res.setHeader(
+      "Access-Control-Allow-Methods",
+      "GET, POST, PUT, DELETE, OPTIONS",
+    );
+
+    if (req.method === "OPTIONS") {
+      res.writeHead(204);
+      res.end();
+      return;
+    }
+
     const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
     if (url.pathname.startsWith("/api/")) {
       await handleApi(req, res, url);
@@ -469,8 +602,13 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, HOST, async () => {
   await ensureDataFile();
+  const adminConfig = await readAdminConfig();
   console.log("Reservation VR demarree.");
-  console.log(`Admin: ${ADMIN_PASSWORD}`);
+  if (adminConfig.configured) {
+    console.log("Admin: code configure.");
+  } else {
+    console.log("Admin: ouvre /admin pour creer ton code.");
+  }
   console.log("Ouvrir:");
   for (const address of localAddresses()) {
     console.log(`- ${address}`);

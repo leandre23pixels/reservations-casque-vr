@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Admin reservations VR</title>
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=3" />
   </head>
   <body class="admin-body">
     <main class="admin-shell">
@@ -12,7 +12,9 @@
         <div>
           <p class="eyebrow">Administration</p>
           <h1 id="login-title">Connexion admin</h1>
-          <p class="muted">Code par defaut: lso2012</p>
+          <p id="login-help" class="muted">
+            Entre ton code admin pour gerer les reservations.
+          </p>
         </div>
 
         <form id="login-form" class="login-form">
@@ -26,7 +28,18 @@
               required
             />
           </label>
-          <button class="primary-button" type="submit">Entrer</button>
+          <label id="admin-password-confirm-label" class="hidden">
+            <span>Confirmer le code</span>
+            <input
+              id="admin-password-confirm"
+              name="confirmPassword"
+              type="password"
+              autocomplete="new-password"
+            />
+          </label>
+          <button id="admin-submit-button" class="primary-button" type="submit">
+            Entrer
+          </button>
           <p id="login-message" class="notice" role="status"></p>
         </form>
       </section>
@@ -152,6 +165,7 @@
       </section>
     </main>
 
-    <script src="admin.js" defer></script>
+    <script src="api-client.js?v=3" defer></script>
+    <script src="admin.js?v=3" defer></script>
   </body>
 </html>

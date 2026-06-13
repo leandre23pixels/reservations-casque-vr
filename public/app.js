@@ -64,15 +64,12 @@ function render(data) {
 
 async function loadPublicState() {
   try {
-    const response = await fetch("/api/public", { cache: "no-store" });
-    const data = await response.json();
+    const response = await window.vrApi.fetch("/api/public", { cache: "no-store" });
+    const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error || "Erreur de chargement.");
     render(data);
   } catch (error) {
-    setNotice(
-      "Impossible de joindre le serveur de reservations. Verifie qu'il est lance.",
-      true,
-    );
+    setNotice(window.vrApi.message(), true);
   }
 }
 
@@ -88,12 +85,12 @@ form.addEventListener("submit", async (event) => {
   };
 
   try {
-    const response = await fetch("/api/reservations", {
+    const response = await window.vrApi.fetch("/api/reservations", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    const data = await response.json();
+    const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error || "Reservation impossible.");
 
     form.reset();

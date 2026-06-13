@@ -3,8 +3,15 @@ const loginPanel = document.querySelector("#login-panel");
 const dashboard = document.querySelector("#dashboard");
 const loginForm = document.querySelector("#login-form");
 const loginMessage = document.querySelector("#login-message");
+const loginTitle = document.querySelector("#login-title");
+const loginHelp = document.querySelector("#login-help");
 const adminMessage = document.querySelector("#admin-message");
 const logoutButton = document.querySelector("#logout-button");
+const passwordConfirmLabel = document.querySelector(
+  "#admin-password-confirm-label",
+);
+const adminPasswordConfirm = document.querySelector("#admin-password-confirm");
+const adminSubmitButton = document.querySelector("#admin-submit-button");
 
 const settingsForm = document.querySelector("#settings-form");
 const deviceAddForm = document.querySelector("#device-add-form");
@@ -22,6 +29,7 @@ const settingVenue = document.querySelector("#setting-venue");
 const settingDescription = document.querySelector("#setting-description");
 
 let state = null;
+let setupMode = false;
 
 function token() {
   return localStorage.getItem(tokenKey);
@@ -43,7 +51,7 @@ function setMessage(target, message, isError = false) {
 }
 
 async function api(path, options = {}) {
-  const response = await fetch(path, {
+  const response = await window.vrApi.fetch(path, {
     ...options,
     headers: {
       "Content-Type": "application/json",
@@ -51,7 +59,7 @@ async function api(path, options = {}) {
       ...(options.headers || {}),
     },
   });
-  const data = await response.json();
+  const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     if (response.status === 401) {
       localStorage.removeItem(tokenKey);
@@ -60,6 +68,28 @@ async function api(path, options = {}) {
     throw new Error(data.error || "Action impossible.");
   }
   return data;
+}
+
+async function loadAdminStatus() {
+  try {
+    const response = await window.vrApi.fetch("/api/admin/status", {
+      cache: "no-store",
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || window.vrApi.message());
+
+    setupMode = !data.configured;
+    passwordConfirmLabel.classList.toggle("hidden", !setupMode);
+    adminPasswordConfirm.required = setupMode;
+    loginTitle.textContent = setupMode ? "Creer le code admin" : "Connexion admin";
+    loginHelp.textContent = setupMode
+      ? "Choisis ton propre code admin. Il ne sera pas affiche sur le site."
+      : "Entre ton code admin pour gerer les reservations.";
+    adminSubmitButton.textContent = setupMode ? "Creer le code" : "Entrer";
+  } catch (error) {
+    setupMode = false;
+    setMessage(loginMessage, window.vrApi.message(), true);
+  }
 }
 
 function optionList(selectedSlotId) {
@@ -105,7 +135,7 @@ function renderDevices() {
         <input name="active" type="checkbox" ${device.active ? "checked" : ""} />
         Actif
       </label>
-      <button class="icon-button" type="button" data-action="delete-device" title="Supprimer">×</button>
+      <button class="icon-button" type="button" data-action="delete-device" title="Supprimer">x</button>
     `;
     deviceList.append(row);
   });
@@ -130,7 +160,7 @@ function renderSlots() {
         <input name="active" type="checkbox" ${slot.active ? "checked" : ""} />
         Visible
       </label>
-      <button class="icon-button" type="button" data-action="delete-slot" title="Supprimer">×</button>
+      <button class="icon-button" type="button" data-action="delete-slot" title="Supprimer">x</button>
     `;
     slotAdminList.append(row);
   });
@@ -160,7 +190,7 @@ function renderReservations() {
         <option value="checked-in" ${reservation.status === "checked-in" ? "selected" : ""}>Arrive</option>
       </select>
       <button class="save-button" type="submit">OK</button>
-      <button class="icon-button" type="button" data-action="delete-reservation" title="Supprimer">×</button>
+      <button class="icon-button" type="button" data-action="delete-reservation" title="Supprimer">x</button>
     `;
     reservationList.append(row);
   });
@@ -184,17 +214,22 @@ loginForm.addEventListener("submit", async (event) => {
   setMessage(loginMessage, "");
 
   try {
-    const password = new FormData(loginForm).get("password");
-    const response = await fetch("/api/admin/login", {
+    const formData = new FormData(loginForm);
+    const path = setupMode ? "/api/admin/setup" : "/api/admin/login";
+    const response = await window.vrApi.fetch(path, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password }),
+      body: JSON.stringify({
+        password: formData.get("password"),
+        confirmPassword: formData.get("confirmPassword"),
+      }),
     });
-    const data = await response.json();
+    const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error || "Connexion impossible.");
 
     localStorage.setItem(tokenKey, data.token);
     loginForm.reset();
+    await loadAdminStatus();
     await loadState();
   } catch (error) {
     setMessage(loginMessage, error.message, true);
@@ -203,6 +238,7 @@ loginForm.addEventListener("submit", async (event) => {
 
 logoutButton.addEventListener("click", () => {
   localStorage.removeItem(tokenKey);
+  loadAdminStatus();
   showLogin();
 });
 
@@ -262,7 +298,7 @@ slotAddForm.addEventListener("submit", async (event) => {
 reservationAddForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   try {
-    const response = await fetch("/api/reservations", {
+    const response = await window.vrApi.fetch("/api/reservations", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -271,7 +307,7 @@ reservationAddForm.addEventListener("submit", async (event) => {
         slotId: newReservationSlot.value,
       }),
     });
-    const data = await response.json();
+    const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error || "Ajout impossible.");
     reservationAddForm.reset();
     await loadState();
@@ -383,8 +419,10 @@ reservationList.addEventListener("click", async (event) => {
   await loadState();
 });
 
-if (token()) {
-  loadState().catch(() => showLogin());
-} else {
-  showLogin();
-}
+loadAdminStatus().then(() => {
+  if (token() && !setupMode) {
+    loadState().catch(() => showLogin());
+  } else {
+    showLogin();
+  }
+});
