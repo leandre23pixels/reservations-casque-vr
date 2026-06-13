@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Admin reservations VR</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="admin-body">
+    <main class="admin-shell">
+      <section id="login-panel" class="login-panel" aria-labelledby="login-title">
+        <div>
+          <p class="eyebrow">Administration</p>
+          <h1 id="login-title">Connexion admin</h1>
+          <p class="muted">Code par defaut: lso2012</p>
+        </div>
+
+        <form id="login-form" class="login-form">
+          <label>
+            <span>Code admin</span>
+            <input
+              id="admin-password"
+              name="password"
+              type="password"
+              autocomplete="current-password"
+              required
+            />
+          </label>
+          <button class="primary-button" type="submit">Entrer</button>
+          <p id="login-message" class="notice" role="status"></p>
+        </form>
+      </section>
+
+      <section id="dashboard" class="dashboard hidden" aria-labelledby="admin-title">
+        <div class="admin-topbar">
+          <div>
+            <p class="eyebrow">Tableau de bord</p>
+            <h1 id="admin-title">Reservations VR</h1>
+          </div>
+          <div class="topbar-actions">
+            <a class="secondary-button" href="/">Voir le site</a>
+            <button id="logout-button" class="ghost-button" type="button">
+              Deconnexion
+            </button>
+          </div>
+        </div>
+
+        <p id="admin-message" class="notice" role="status"></p>
+
+        <div class="admin-grid">
+          <section class="admin-section">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Evenement</p>
+                <h2>Infos publiques</h2>
+              </div>
+            </div>
+            <form id="settings-form" class="stack-form">
+              <label>
+                <span>Titre</span>
+                <input id="setting-title" maxlength="80" required />
+              </label>
+              <label>
+                <span>Date / moment</span>
+                <input id="setting-date" maxlength="80" />
+              </label>
+              <label>
+                <span>Lieu</span>
+                <input id="setting-venue" maxlength="80" />
+              </label>
+              <label>
+                <span>Description</span>
+                <textarea id="setting-description" maxlength="220"></textarea>
+              </label>
+              <button class="primary-button" type="submit">Enregistrer</button>
+            </form>
+          </section>
+
+          <section class="admin-section">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Materiel</p>
+                <h2>Casques disponibles</h2>
+              </div>
+            </div>
+            <form id="device-add-form" class="inline-form">
+              <input
+                id="new-device-name"
+                placeholder="Nom du casque"
+                maxlength="60"
+                required
+              />
+              <button class="secondary-button" type="submit">Ajouter</button>
+            </form>
+            <div id="device-list" class="admin-list"></div>
+          </section>
+
+          <section class="admin-section">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Planning</p>
+                <h2>Creneaux</h2>
+              </div>
+            </div>
+            <form id="slot-add-form" class="inline-form slot-add-form">
+              <input
+                id="new-slot-label"
+                placeholder="Ex: 22:00 - 22:15"
+                maxlength="60"
+                required
+              />
+              <input
+                id="new-slot-capacity"
+                type="number"
+                min="1"
+                max="50"
+                value="3"
+                aria-label="Places"
+              />
+              <button class="secondary-button" type="submit">Ajouter</button>
+            </form>
+            <div id="slot-admin-list" class="admin-list"></div>
+          </section>
+
+          <section class="admin-section reservations-section">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Participants</p>
+                <h2>Reservations</h2>
+              </div>
+              <span id="reservation-count" class="count-pill">0</span>
+            </div>
+            <form id="reservation-add-form" class="inline-form reservation-add-form">
+              <input
+                id="new-reservation-first-name"
+                placeholder="Prenom"
+                maxlength="40"
+                required
+              />
+              <input
+                id="new-reservation-last-name"
+                placeholder="Nom"
+                maxlength="40"
+                required
+              />
+              <select id="new-reservation-slot" required></select>
+              <button class="secondary-button" type="submit">Ajouter</button>
+            </form>
+            <div id="reservation-list" class="reservation-list"></div>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <script src="/admin.js" defer></script>
+  </body>
+</html>

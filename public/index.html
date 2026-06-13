@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Reservations casque VR</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="booking-hero" aria-labelledby="event-title">
+        <div class="hero-copy">
+          <p class="eyebrow">Reservation VR</p>
+          <h1 id="event-title">Soiree casque VR</h1>
+          <p id="event-meta" class="meta-line">Chargement...</p>
+          <p id="event-description" class="event-description"></p>
+        </div>
+        <img
+          class="hero-image"
+          src="/assets/vr-party.png"
+          alt="Casques VR prets pour une soiree"
+        />
+      </section>
+
+      <section class="booking-panel" aria-labelledby="booking-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Inscription rapide</p>
+            <h2 id="booking-title">Choisis ton creneau</h2>
+          </div>
+          <a class="admin-link" href="/admin">Admin</a>
+        </div>
+
+        <div id="notice" class="notice" role="status"></div>
+
+        <form id="reservation-form" class="booking-form">
+          <div class="form-grid">
+            <label>
+              <span>Prenom</span>
+              <input
+                id="first-name"
+                name="firstName"
+                autocomplete="given-name"
+                maxlength="40"
+                required
+              />
+            </label>
+            <label>
+              <span>Nom</span>
+              <input
+                id="last-name"
+                name="lastName"
+                autocomplete="family-name"
+                maxlength="40"
+                required
+              />
+            </label>
+          </div>
+
+          <div id="slot-list" class="slot-list" aria-live="polite">
+            <p class="loading">Chargement des creneaux...</p>
+          </div>
+
+          <button class="primary-button" type="submit">Reserver</button>
+        </form>
+      </section>
+    </main>
+
+    <script src="/app.js" defer></script>
+  </body>
+</html>

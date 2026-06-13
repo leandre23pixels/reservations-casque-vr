@@ -1,0 +1,64 @@
+{
+  "settings": {
+    "eventTitle": "Soiree casque VR",
+    "eventDate": "Ce soir",
+    "venue": "Salle de jeu",
+    "description": "Reserve un creneau, viens avec ton prenom, et profite d'une session VR."
+  },
+  "devices": [
+    {
+      "id": "device-1",
+      "name": "Casque VR 1",
+      "active": true
+    },
+    {
+      "id": "device-2",
+      "name": "Casque VR 2",
+      "active": true
+    },
+    {
+      "id": "device-3",
+      "name": "Casque VR 3",
+      "active": true
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot-2000",
+      "label": "20:00 - 20:15",
+      "capacity": 3,
+      "active": true
+    },
+    {
+      "id": "slot-2020",
+      "label": "20:20 - 20:35",
+      "capacity": 3,
+      "active": true
+    },
+    {
+      "id": "slot-2040",
+      "label": "20:40 - 20:55",
+      "capacity": 3,
+      "active": true
+    },
+    {
+      "id": "slot-2100",
+      "label": "21:00 - 21:15",
+      "capacity": 3,
+      "active": true
+    },
+    {
+      "id": "slot-2120",
+      "label": "21:20 - 21:35",
+      "capacity": 3,
+      "active": true
+    },
+    {
+      "id": "slot-2140",
+      "label": "21:40 - 21:55",
+      "capacity": 3,
+      "active": true
+    }
+  ],
+  "reservations": []
+}

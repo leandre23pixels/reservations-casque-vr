@@ -1,0 +1,16 @@
+{
+  "name": "reservations-casque-vr",
+  "version": "1.0.0",
+  "description": "Site de reservations pour une soiree VR avec administration locale.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "vr",
+    "reservations",
+    "evenement"
+  ],
+  "author": "",
+  "license": "MIT"
+}
